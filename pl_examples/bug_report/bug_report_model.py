@@ -3,7 +3,7 @@ import os
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from pytorch_lightning import LightningModule, Trainer
+from pytorch_lightning import LightningModule, Trainer, LightningDataModule
 
 
 class RandomDataset(Dataset):
@@ -16,6 +16,20 @@ class RandomDataset(Dataset):
 
     def __len__(self):
         return self.len
+
+
+class BoringDataModule(LightningDataModule):
+    def __init__(self, batch_size=2):
+        super().__init__()
+        self.batch_size = batch_size
+
+    def dataloader(self):
+        print(f"loading dataloader with batch_size: {self.batch_size}")
+        return DataLoader(RandomDataset(32, 64), batch_size=self.batch_size)
+
+    train_dataloader = dataloader
+    test_dataloader = dataloader
+    val_dataloader = dataloader
 
 
 class BoringModel(LightningModule):
@@ -44,9 +58,8 @@ class BoringModel(LightningModule):
 
 
 def run():
-    train_data = DataLoader(RandomDataset(32, 64), batch_size=2)
-    val_data = DataLoader(RandomDataset(32, 64), batch_size=2)
-    test_data = DataLoader(RandomDataset(32, 64), batch_size=2)
+
+    datamodule = BoringDataModule()
 
     model = BoringModel()
     trainer = Trainer(
@@ -58,8 +71,10 @@ def run():
         max_epochs=1,
         enable_model_summary=False,
     )
-    trainer.fit(model, train_dataloaders=train_data, val_dataloaders=val_data)
-    trainer.test(model, dataloaders=test_data)
+    results = trainer.tune(model, datamodule)
+    print(results)
+    trainer.fit(model, datamodule)
+    trainer.test(model, datamodule)
 
 
 if __name__ == "__main__":
